@@ -21,15 +21,15 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'eval'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'symbols'))
 import fresnet
 import finception_resnet_v2
-import flightcnn
-import fmobilenet 
+#import flightcnn
+import fmobilenet
 import fmobilenetv2
-import fmnasnet
+#import recognition.symbol.fmnasnet
 import fmobilefacenet
 import fxception
 import fdensenet
 import fdpn
-import fcru
+#import fcru
 import fnasnet
 import spherenet
 import verification
@@ -145,39 +145,41 @@ def get_symbol(args, arg_params, aux_params):
   image_shape = ",".join([str(x) for x in data_shape])
   margin_symbols = []
   if args.network[0] == 'c':
-      embedding = fcru.get_symbol(args.emb_size, fc_type = args.version_output)
+      print('fcru not implemented.')
+      #embedding = fcru.get_symbol(args.emb_size, fc_type = args.version_output)
   elif args.network[0]=='d':
     embedding = fdensenet.get_symbol(args.emb_size, args.num_layers,
-        version_se=args.version_se, version_input=args.version_input, 
+        version_se=args.version_se, version_input=args.version_input,
         version_output=args.version_output, version_unit=args.version_unit)
   elif args.network[0]=='m':
     print('init mobilenet', args.num_layers)
     if args.num_layers==1:
-      embedding = fmobilenet.get_symbol(args.emb_size, 
-          version_se=args.version_se, version_input=args.version_input, 
+      embedding = fmobilenet.get_symbol(args.emb_size,
+          version_se=args.version_se, version_input=args.version_input,
           version_output=args.version_output, version_unit=args.version_unit)
     elif args.num_layers == 2:
       embedding = fmobilenetv2.get_symbol(args.emb_size, version_output = args.version_output)
     elif args.num_layers == 3:
-      embedding = fmnasnet.get_symbol(args.emb_size, fc_type = args.version_output)
+      print('fmnasnet not implemented.')
+      #embedding = fmnasnet.get_symbol(args.emb_size, fc_type = args.version_output)
   elif args.network[0]=='i':
     print('init inception-resnet-v2', args.num_layers)
-    embedding = finception_resnet_v2.get_symbol(args.emb_size, 
-        version_se=args.version_se, version_input=args.version_input, 
+    embedding = finception_resnet_v2.get_symbol(args.emb_size,
+        version_se=args.version_se, version_input=args.version_input,
         version_output=args.version_output, version_unit=args.version_unit)
   elif args.network[0]=='x':
     print('init xception', args.num_layers)
     embedding = fxception.get_symbol(args.emb_size,
-        version_se=args.version_se, version_input=args.version_input, 
+        version_se=args.version_se, version_input=args.version_input,
         version_output=args.version_output, version_unit=args.version_unit)
   elif args.network[0]=='p':
     print('init dpn', args.num_layers)
     embedding = fdpn.get_symbol(args.emb_size, args.num_layers,
-        version_se=args.version_se, version_input=args.version_input, 
+        version_se=args.version_se, version_input=args.version_input,
         version_output=args.version_output, version_unit=args.version_unit)
   elif args.network[0]=='l':
     print('init lightcnn', args.num_layers)
-    embedding = flightcnn.get_symbol(args.emb_size, args.num_layers, bn_mom = args.bn_mom, version_output=args.version_output)
+    #embedding = flightcnn.get_symbol(args.emb_size, args.num_layers, bn_mom = args.bn_mom, version_output=args.version_output)
   elif args.network[0]=='n':
     print('init nasnet', args.num_layers)
     embedding = fnasnet.get_symbol(args.emb_size)
@@ -190,7 +192,7 @@ def get_symbol(args, arg_params, aux_params):
   else:
     print('init resnet', args.num_layers)
     embedding = fresnet.get_symbol(args.emb_size, args.num_layers, shake_drop=args.shake_drop,
-        version_se=args.version_se, version_input=args.version_input, 
+        version_se=args.version_se, version_input=args.version_input,
         version_output=args.version_output, version_unit=args.version_unit,
         version_act=args.version_act, width_mult = args.width_mult, version_bn=args.version_bn)
 
@@ -198,7 +200,7 @@ def get_symbol(args, arg_params, aux_params):
   all_label = mx.symbol.split(data=all_label, axis=1, num_outputs=len(args.num_classes))
 
   if args.loss_type == 6:
-    m = mx.symbol.Variable(name='margin') 
+    m = mx.symbol.Variable(name='margin')
 
   for i in range(len(args.num_classes)):
     gt_label = all_label[i].reshape([-1, ])
@@ -260,7 +262,7 @@ def get_symbol(args, arg_params, aux_params):
       else:
         zy_keep = zy - s*mm
       new_zy = mx.sym.where(cond, new_zy, zy_keep)
-  
+
       diff = new_zy - zy
       diff = mx.sym.expand_dims(diff, 1)
       gt_one_hot = mx.sym.one_hot(gt_label, depth = args.num_classes[i], on_value = 1.0, off_value = 0.0)
@@ -325,7 +327,7 @@ def get_symbol(args, arg_params, aux_params):
       else:
         zy_keep = zy - s*mm
       new_zy = mx.sym.where(cond, new_zy, zy_keep)
-  
+
       diff = new_zy - zy
       diff = mx.sym.expand_dims(diff, 1)
       gt_one_hot = mx.sym.one_hot(gt_label, depth = args.num_classes[i], on_value = 1.0, off_value = 0.0)
