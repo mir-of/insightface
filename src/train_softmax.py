@@ -71,6 +71,45 @@ class AccMetric(mx.metric.EvalMetric):
         self.sum_metric += (pred_label == label).sum()
         self.num_inst += len(pred_label)
 
+class CrossEntropyLoss(mx.metric.EvalMetric):
+  def __init__(self, eps=1e-12, name='cross-entropy-loss',
+               output_names=None, label_names=None):
+    super(CrossEntropyLoss, self).__init__(
+      name, eps=eps,
+      output_names=output_names, label_names=label_names)
+    self.eps = eps
+
+  def update(self, labels_ls, preds_ls):
+    """Updates the internal evaluation result.
+
+    Parameters
+    ----------
+    labels : list of `NDArray`
+        The labels of the data.
+
+    preds : list of `NDArray`
+        Predicted values.
+    """
+    labels = labels_ls[0]
+    preds = preds_ls[1]
+
+    labels, preds = mx.metric.check_label_shapes(labels, preds, True)
+
+    for label, pred in zip(labels, preds):
+      label = label.asnumpy()
+      pred = pred.asnumpy()
+
+      label = label.ravel()
+      assert label.shape[0] == pred.shape[0]
+
+      prob = pred[np.arange(label.shape[0]), np.int64(label)]
+      self.sum_metric = 0
+      self.num_inst = 0
+      self.sum_metric += (-np.log(prob + self.eps)).sum()
+      self.num_inst += label.shape[0]
+      print("hi-------", self.num_inst)
+
+
 class LossValueMetric(mx.metric.EvalMetric):
   def __init__(self):
     self.axis = 1
@@ -336,7 +375,9 @@ def get_symbol(args, arg_params, aux_params):
     if i == 0:
       out_list = [mx.symbol.BlockGrad(embedding)]
     softmax = mx.symbol.SoftmaxOutput(data=fc7, label = gt_label, name='softmax_%d' % i, normalization='valid', use_ignore=True)
+    # softmax_loss = mx.symbol.softmax_cross_entropy(data=fc7, label=gt_label, name='loss_%d' %i)
     out_list.append(softmax)
+    # out_list.append(softmax_loss)
   out = mx.symbol.Group(out_list)
   return (out, arg_params, aux_params)
 
@@ -413,6 +454,8 @@ def train_net(args):
         symbol        = sym,
         data_names    = ['data'] if args.loss_type != 6 else ['data', 'margin']
     )
+
+
     val_dataiter = None
 
     train_dataiter = FaceImageIter(
@@ -430,10 +473,21 @@ def train_net(args):
         data_names           = ['data', 'margin']
     )
 
+    # if args.loss_type<10:
+    #   _metric = AccMetric()
+    # else:
+    #   _metric = LossValueMetric()
+    # eval_metrics = [mx.metric.create(_metric)]
+    _metric = mx.metric.CompositeEvalMetric()
     if args.loss_type<10:
-      _metric = AccMetric()
+      metric1 = AccMetric()
+      metric2 = CrossEntropyLoss()
+      for child_metric in [metric2]:
+        _metric.add(child_metric)
     else:
-      _metric = LossValueMetric()
+      metric1 = LossValueMetric()
+      for child_metric in [metric1]:
+        _metric.add(child_metric)
     eval_metrics = [mx.metric.create(_metric)]
 
     if args.network[0]=='r' or args.network[0]=='y':
@@ -449,13 +503,13 @@ def train_net(args):
 
     ver_list = []
     ver_name_list = []
-    for name in args.target.split(','):
-      path = os.path.join(data_dir,name+".bin")
-      if os.path.exists(path):
-        data_set = verification.load_bin(path, image_size)
-        ver_list.append(data_set)
-        ver_name_list.append(name)
-        print('ver', name)
+    # for name in args.target.split(','):
+    #   path = os.path.join(data_dir,name+".bin")
+    #   if os.path.exists(path):
+    #     data_set = verification.load_bin(path, image_size)
+    #     ver_list.append(data_set)
+    #     ver_name_list.append(name)
+    #     print('ver', name)
 
 
 
@@ -486,6 +540,7 @@ def train_net(args):
     else:
       lr_steps = [int(x) for x in args.lr_steps.split(',')]
     print('lr_steps', lr_steps)
+
     def _batch_callback(param):
       #global global_step
       global_step[0]+=1
@@ -499,6 +554,13 @@ def train_net(args):
       _cb(param)
       if mbatch%10000==0:
         print('lr-batch-epoch:',opt.lr,param.nbatch,param.epoch)
+
+
+      # net_out = model.get_outputs()
+      print("batch: {}, metric: {}".format(mbatch, eval_metrics[0].get()))
+
+      # softmax_loss = net_out[2].asnumpy()
+      # print("loss: {}".format(softmax_loss))
 
       if mbatch>=0 and mbatch%args.verbose==0:
         acc_list = ver_test(mbatch)
@@ -536,6 +598,7 @@ def train_net(args):
 
     epoch_cb = None
     train_dataiter = mx.io.PrefetchingIter(train_dataiter)
+
 
     model.fit(train_dataiter,
         begin_epoch        = begin_epoch,
