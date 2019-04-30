@@ -6,6 +6,7 @@ import os
 import sys
 import math
 import random
+import datetime
 import logging
 import pickle
 import numpy as np
@@ -107,7 +108,6 @@ class CrossEntropyLoss(mx.metric.EvalMetric):
       self.num_inst = 0
       self.sum_metric += (-np.log(prob + self.eps)).sum()
       self.num_inst += label.shape[0]
-      print("hi-------", self.num_inst)
 
 
 class LossValueMetric(mx.metric.EvalMetric):
@@ -557,7 +557,8 @@ def train_net(args):
 
 
       # net_out = model.get_outputs()
-      print("batch: {}, metric: {}".format(mbatch, eval_metrics[0].get()))
+      time_stamp = datetime.datetime.now()
+      print("[{}]step: {}, metric: {}".format(time_stamp.strftime('%Y.%m.%d-%H:%M:%S'), mbatch, eval_metrics[0].get()))
 
       # softmax_loss = net_out[2].asnumpy()
       # print("loss: {}".format(softmax_loss))
